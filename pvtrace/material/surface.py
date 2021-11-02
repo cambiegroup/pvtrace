@@ -123,7 +123,11 @@ class FresnelSurfaceDelegate(SurfaceDelegate):
         n1 = container.geometry.material.refractive_index
         n2 = adjacent.geometry.material.refractive_index
         # Be tolerance with definition of surface normal
-        normal = geometry.normal(ray.position)
+        from pvtrace import Mesh
+        if isinstance(geometry, Mesh):
+            normal = geometry.normal_from_intersection(ray)
+        else:
+            normal = geometry.normal(ray.position)
         if np.dot(normal, ray.direction) < 0.0:
             normal = flip(normal)
         angle = angle_between(normal, np.array(ray.direction))
@@ -146,7 +150,11 @@ class FresnelSurfaceDelegate(SurfaceDelegate):
             adjacent: Node
                 The node that would contain the ray if transmitted.
         """
-        normal = geometry.normal(ray.position)
+        from pvtrace import Mesh
+        if isinstance(geometry, Mesh):
+            normal = geometry.normal_from_intersection(ray)
+        else:
+            normal = geometry.normal(ray.position)
         direction = ray.direction
         reflected_direction = specular_reflection(direction, normal)
         return tuple(reflected_direction.tolist())
@@ -170,7 +178,11 @@ class FresnelSurfaceDelegate(SurfaceDelegate):
         n1 = container.geometry.material.refractive_index
         n2 = adjacent.geometry.material.refractive_index
         # Be tolerance with definition of surface normal
-        normal = geometry.normal(ray.position)
+        from pvtrace import Mesh
+        if isinstance(geometry, Mesh):
+            normal = geometry.normal_from_intersection(ray)
+        else:
+            normal = geometry.normal(ray.position)
         if np.dot(normal, ray.direction) < 0.0:
             normal = flip(normal)
         refracted_direction = fresnel_refraction(ray.direction, normal, n1, n2)

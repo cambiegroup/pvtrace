@@ -60,6 +60,14 @@ class Mesh(Geometry):
         locations = tuple(sorted(locations, key=distance_sort_key))
         return locations
 
+    def normal_from_intersection(self, ray) -> tuple:
+        """ Ensure that the normal returned is that of the triangle responsible for intersection """
+        _, _, index_tri = self.trimesh.ray.intersects_location(
+            ray_origins=np.array([ray.position]), ray_directions=np.array([ray.direction])
+        )
+        return tuple(self.trimesh.face_normals[index_tri[0]])
+
+
     def normal(self, surface_point: tuple) -> tuple:
         """ Returns the unit surface normal at the surface_point.
         """
