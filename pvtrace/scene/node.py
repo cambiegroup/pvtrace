@@ -18,13 +18,14 @@ class Node(NodeMixin, Transformable):
     """
 
     def __init__(
-        self, name=None, parent=None, location=None, geometry=None, light=None
+        self, name=None, parent=None, location=None, geometry=None, light=None, appearance=None
     ):
         super(Node, self).__init__(location=location)
         self.name = name
         self.parent = parent
         self.geometry = geometry
         self.light = light
+        self.appearance = appearance if appearance else {}
 
     def __repr__(self):
         return "Node({})".format(self.name)
@@ -37,7 +38,7 @@ class Node(NodeMixin, Transformable):
         The "face" of the node is defined to be direction [0, 0, 1]. This method
         with always point the face of the node along the direction vector
         specified. Note that the if the node is displaced from the origin this
-        will be respected and the node will be rotate around it's centre.
+        will be respected and the node will be rotate around its centre.
 
         References
         ----------

@@ -41,6 +41,8 @@ class MeshcatRenderer(object):
         self.ray_histories = deque(maxlen=max_histories)
         self.max_histories = max_histories
         self.added_index = 0
+
+        # If set these properties will overwrite any node-level attribute
         self.wireframe = wireframe
         self.transparency = transparency
         self.opacity = opacity
@@ -60,18 +62,37 @@ class MeshcatRenderer(object):
         # you would get that behaviour.
         pathname = " | ".join([x.name for x in node.path])
         if node.geometry is not None:
+            # Color: int
+            color = node.appearance.get("color", 0xffffff)  # Default is white
+            assert 0x000000 <= color <= 0xffffff
+
+            # Visible: bool
+            visible = node.appearance.get("visible", True)
+
+            # Additional meshcat properties
+            meshcat_properties = node.appearance.get("meshcat", {})
+
+            # Preparing material
+            material = g.MeshBasicMaterial(
+                color=color, visible=visible, **meshcat_properties
+            )
+            # Overwrite node settings with renderer ones if set
+            if self.reflectivity:
+                material.reflectivity = self.reflectivity
+            if self.wireframe:
+                material.wireframe = self.wireframe
+            if self.opacity:
+                material.opacity = self.opacity
+            if self.transparency:
+                material.transparency = self.transparency
+
             # Transforming everything to global
             self.add_geometry(
-                node.geometry, pathname, node.transformation_to(node.root)
+                node.geometry, pathname, node.transformation_to(node.root), material
             )
 
-    def add_geometry(self, geometry, pathname, transform):
+    def add_geometry(self, geometry, pathname, transform, material):
         vis = self.vis
-        material = g.MeshBasicMaterial(
-            reflectivity=self.reflectivity, sides=0, wireframe=self.wireframe
-        )
-        material.transparency = self.transparency
-        material.opacity = self.opacity
 
         if isinstance(geometry, Sphere):
             sphere = geometry

@@ -2,6 +2,8 @@ anytree
 meshcat>=0.1.1
 numpy
 trimesh[easy]
+typer
+asciiplotlib
 jupyter
 matplotlib
 pandas

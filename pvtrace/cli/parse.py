@@ -3,7 +3,6 @@ Parses the pvtrace-scene.yml file and generates Python objects.
 """
 
 from pvtrace.material.distribution import Distribution
-from pvtrace.material.component import Luminophore, Scatterer
 import jsonschema
 import yaml
 import json
@@ -13,7 +12,8 @@ import os
 import trimesh
 import numpy as np
 import pvtrace
-from typing import Callable, Tuple, List, Dict, Optional
+from typing import Callable, Tuple, List, Dict, Optional, Union
+from pvtrace.common.errors import AppError
 from pvtrace import (
     Scene,
     Box,
@@ -25,6 +25,7 @@ from pvtrace import (
     Absorber,
     Scatterer,
     Luminophore,
+    Reactor,
     Light,
     MeshcatRenderer,
 )
@@ -56,7 +57,6 @@ SPECTRUM_MODULES = {"lumogen-f-red-305": lumogen_f_red_305, "fluro-red": fluro_r
 
 
 def load_schema():
-    print(SCHEMA)
     with open(SCHEMA, "r") as fp:
         schema = json.load(fp)
         jsonschema.Draft7Validator.check_schema(schema)
@@ -70,7 +70,7 @@ def load_spec(filename):
         return spec
 
 
-def parse(filename: str) -> Scene:
+def parse(filename: Union[str, bytes, os.PathLike]) -> Scene:
     schema = load_schema()
     spec = load_spec(filename)
     jsonschema.validate(spec, schema=schema)
@@ -99,9 +99,7 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
         # Check that the declared components on the material have
         # actually been defined in the components section of the
         # file.
-        component_keys = []
-        if "components" in spec:
-            component_keys = spec["components"]
+        component_keys = spec.get("components", [])
 
         for k in component_keys:
             if not (k in component_map):
@@ -232,14 +230,17 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
         # Get absolute path to the spectrum CSV
         if not os.path.isabs(filename):
             filename = os.path.abspath(os.path.join(working_directory, filename))
-            print(f"Reading {filename}")
+            # print(f"Reading {filename}")
 
-        df = pandas.read_csv(
-            filename,
-            usecols=[0, 1, 2],
-            index_col=0,
-            dtype=np.float64
-        )
+        try:
+            df = pandas.read_csv(
+                filename,
+                usecols=[0, 1, 2],
+                index_col=0,
+                dtype=np.float64
+            )
+        except FileNotFoundError as e:
+            raise AppError(f"Cannot find file {filename}!") from e
         # like numpy.column_stack((x, y))
         spectrum = df.iloc[:, 0:2].values
         return spectrum
@@ -265,6 +266,30 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
             return Absorber(spectrum, name=name, hist=hist)
         elif coefficient:
             return Absorber(coefficient, name=name)
+
+        raise ValueError("Unexpected absorber format.")
+
+    def parse_reactor(spec, name):
+
+        coefficient = None
+        if "coefficient" in spec:
+            coefficient = spec["coefficient"]
+
+        hist = False
+        if "hist" in spec:
+            hist = spec["hist"]
+
+        spectrum = None
+        if "spectrum" in spec:
+            spectrum = parse_spectrum(spec["spectrum"], named_type="absorption")
+
+        if coefficient and (spectrum is not None):
+            spectrum[:, 1] = spectrum[:, 1] / numpy.max(spectrum[:, 1]) * coefficient
+            return Reactor(spectrum, name=name, hist=hist)
+        elif spectrum is not None:
+            return Reactor(spectrum, name=name, hist=hist)
+        elif coefficient:
+            return Reactor(coefficient, name=name)
 
         raise ValueError("Unexpected absorber format.")
 
@@ -391,13 +416,14 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
         raise ValueError("Unexpected luminophore format.")
 
     def parse_component(spec, name):
-        print(spec)
         if "absorber" in spec:
             return parse_absorber(spec["absorber"], name)
         elif "scatterer" in spec:
             return parse_scatterer(spec["scatterer"], name)
         elif "luminophore" in spec:
             return parse_luminophore(spec["luminophore"], name)
+        elif "reactor" in spec:
+            return parse_reactor(spec["reactor"], name)
         raise ValueError("Unknown component type")
 
     def parse_node(spec, name, component_map=None):
@@ -409,16 +435,17 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
             "cylinder": parse_cylinder,
             "mesh": parse_mesh,
         }
+        appearance = spec.get("appearance", {})
         for geometry_type in geometry_types:
             if geometry_type in spec:
                 geometry = geometry_mapper[geometry_type](
                     spec[geometry_type], component_map=component_map
                 )
-                return Node(geometry=geometry, name=name)
+                return Node(geometry=geometry, name=name, appearance=appearance)
 
         if "light" in spec:
             light = parse_light(spec["light"], name=name)
-            return Node(light=light, name=name)
+            return Node(light=light, name=name, appearance=appearance)
 
         raise ValueError()
 
@@ -426,7 +453,7 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
     component_specs = spec.get("components", None)
     if "components" in spec:
         for k, v in component_specs.items():
-            print(f"component: {k}")
+            # print(f"component: {k}")
             component_map[k] = parse_component(component_specs[k], k)
 
     coordinate_systems = dict()
@@ -435,7 +462,7 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
     for k, v in node_specs.items():
 
         # YAML to node
-        print(f"node: {k}")
+        # print(f"node: {k}")
         nodes[k] = parse_node(v, k, component_map=component_map)
 
         # Capture additional information which can apply later
@@ -463,7 +490,6 @@ def parse_v_1_0(spec: dict, working_directory: str) -> Scene:
 
         direction = coordsys.get("direction", None)
         if direction:
-            print(f"Using direction {direction} for node {node}")
             node.look_at(direction)
 
     return Scene(nodes["world"])

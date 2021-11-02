@@ -29,7 +29,7 @@ class Distribution(object):
                 If x is not ascending or if any element of y is not finite.
         """
         self.hist = hist
-        if x is None and isinstance(y, float):
+        if x is None and isinstance(y, (float, int)):
             self._x = None
             self._y = y
         else:
@@ -70,7 +70,7 @@ class Distribution(object):
             ValueError
                 If x is outside the data range.
         """
-        if self._x is None and isinstance(self._y, float):
+        if self._x is None and isinstance(self._y, (float, int)):
             if isinstance(x, (list, tuple, np.ndarray)):
                 return np.zeros(len(x)) + self._y
             else:

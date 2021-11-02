@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Material(object):
+class Material:
     def __init__(self, refractive_index: float, surface=None, components=None):
         self.refractive_index = refractive_index
         self.surface = Surface() if surface is None else surface
