@@ -27,7 +27,7 @@ class MeshcatRenderer(object):
     def __init__(
         self,
         zmq_url=None,
-        max_histories=10000,
+        max_histories=10,
         open_browser=False,
         wireframe=False,
         transparency=True,
@@ -41,14 +41,15 @@ class MeshcatRenderer(object):
         self.ray_histories = deque(maxlen=max_histories)
         self.max_histories = max_histories
         self.added_index = 0
+
+        # If set these properties will overwrite any node-level attribute
         self.wireframe = wireframe
         self.transparency = transparency
         self.opacity = opacity
         self.reflectivity = reflectivity
 
     def render(self, scene, show_root=False):
-        """
-        """
+        """"""
         vis = self.vis
         for node in LevelOrderIter(scene.root):
             if node == scene.root:
@@ -61,18 +62,37 @@ class MeshcatRenderer(object):
         # you would get that behaviour.
         pathname = " | ".join([x.name for x in node.path])
         if node.geometry is not None:
+            # Color: int
+            color = node.appearance.get("color", 0xffffff)  # Default is white
+            assert 0x000000 <= color <= 0xffffff
+
+            # Visible: bool
+            visible = node.appearance.get("visible", True)
+
+            # Additional meshcat properties
+            meshcat_properties = node.appearance.get("meshcat", {})
+
+            # Preparing material
+            material = g.MeshBasicMaterial(
+                color=color, visible=visible, **meshcat_properties
+            )
+            # Overwrite node settings with renderer ones if set
+            if self.reflectivity:
+                material.reflectivity = self.reflectivity
+            if self.wireframe:
+                material.wireframe = self.wireframe
+            if self.opacity:
+                material.opacity = self.opacity
+            if self.transparency:
+                material.transparency = self.transparency
+
             # Transforming everything to global
             self.add_geometry(
-                node.geometry, pathname, node.transformation_to(node.root)
+                node.geometry, pathname, node.transformation_to(node.root), material
             )
 
-    def add_geometry(self, geometry, pathname, transform):
+    def add_geometry(self, geometry, pathname, transform, material):
         vis = self.vis
-        material = g.MeshBasicMaterial(
-            reflectivity=self.reflectivity, sides=0, wireframe=self.wireframe
-        )
-        material.transparency = self.transparency
-        material.opacity = self.opacity
 
         if isinstance(geometry, Sphere):
             sphere = geometry
@@ -114,26 +134,26 @@ class MeshcatRenderer(object):
         end: Tuple[float, float, float],
         colour=0xFFFFFF,
     ) -> str:
-        """ Add a line segment to the scene and return the identifier.
-        
-            Parameters
-            ----------
-            start : tuple
-                The starting point of the line as (x, y, z) coordinates.
-            end : tuple
-                The ending point of the line as (x, y, z) coordinates.
-            colour : int (optional)
-                An optional colour specified as a hex integer. The default colour is
-                white.
+        """Add a line segment to the scene and return the identifier.
 
-            Returns
-            -------
-            identifier : str
-                The string identifier used to add the line to the scene.
+        Parameters
+        ----------
+        start : tuple
+            The starting point of the line as (x, y, z) coordinates.
+        end : tuple
+            The ending point of the line as (x, y, z) coordinates.
+        colour : int (optional)
+            An optional colour specified as a hex integer. The default colour is
+            white.
+
+        Returns
+        -------
+        identifier : str
+            The string identifier used to add the line to the scene.
         """
         vis = self.vis
         line = (start, end)
-        self._will_add_expendable_to_scene(line)
+        # self._will_add_expendable_to_scene(line)
         vertices = np.column_stack(line)
         assert vertices.shape[0] == 3  # easy to get this wrong
         identifier = self.get_next_identifer()
@@ -143,35 +163,35 @@ class MeshcatRenderer(object):
                 g.MeshBasicMaterial(color=colour, transparency=False, opacity=1),
             )
         )
-        self._did_add_expendable_to_scene(identifier)
+        # self._did_add_expendable_to_scene(identifier)
         return identifier
 
     def add_path(
         self, vertices: Tuple[Tuple[float, float, float]], colour=0xFFFFFF
     ) -> str:
-        """ Add a line to the scene and return the identifier. The line is made from 
-            multiple line segments. The line will be drawn with a single colour.
-        
-            Parameters
-            ----------
-            vertices : tuple of tuple of float
-                The starting point of the line as (x, y, z) coordinates.
-            colour : int (optional)
-                An optional colour specified as a hex integer. The default colour is
-                white.
+        """Add a line to the scene and return the identifier. The line is made from
+        multiple line segments. The line will be drawn with a single colour.
 
-            See also
-            --------
-            add_ray_path : Draws the line using individual line segments. Use this 
-            method when each line segment needs to be drawn with a different colour.
-        
-            Returns
-            -------
-            identifier : str
-                The string identifier used to add the line to the scene.
+        Parameters
+        ----------
+        vertices : tuple of tuple of float
+            The starting point of the line as (x, y, z) coordinates.
+        colour : int (optional)
+            An optional colour specified as a hex integer. The default colour is
+            white.
+
+        See also
+        --------
+        add_ray_path : Draws the line using individual line segments. Use this
+        method when each line segment needs to be drawn with a different colour.
+
+        Returns
+        -------
+        identifier : str
+            The string identifier used to add the line to the scene.
         """
         vis = self.vis
-        self._will_add_expendable_to_scene(vertices)
+        # self._will_add_expendable_to_scene(vertices)
         vertices = np.array(vertices)
         assert vertices.shape[0] == 3  # easy to get this wrong
         identifier = self.get_next_identifer()
@@ -181,31 +201,31 @@ class MeshcatRenderer(object):
                 g.MeshBasicMaterial(color=colour, transparency=False, opacity=1.0),
             )
         )
-        self._did_add_expendable_to_scene(identifier)
+        # self._did_add_expendable_to_scene(identifier)
         return identifier
 
     def add_ray(self, ray: Ray, length: float) -> str:
-        """ Add the ray path as a single connected line and return an identifier. 
-        
-            Parameters
-            ----------
-            ray : Ray
-                The ray to add to the scene.
+        """Add the ray path as a single connected line and return an identifier.
 
-            Notes
-            -----
-            Internally the line is drawn using `add_line_segment` because the colour of
-            each segment could be unique. If this proves too inefficiency use 
-            `add_path`.
+        Parameters
+        ----------
+        ray : Ray
+            The ray to add to the scene.
 
-            See also
-            --------
-            add_ray_path : Adds multiple rays to the scene.
+        Notes
+        -----
+        Internally the line is drawn using `add_line_segment` because the colour of
+        each segment could be unique. If this proves too inefficiency use
+        `add_path`.
 
-            Returns
-            -------
-            identifier : str
-                The string identifier used to add the object to the scene.
+        See also
+        --------
+        add_ray_path : Adds multiple rays to the scene.
+
+        Returns
+        -------
+        identifier : str
+            The string identifier used to add the object to the scene.
         """
         nanometers = ray.wavelength
         start = ray.position
@@ -215,24 +235,24 @@ class MeshcatRenderer(object):
         return identifier
 
     def add_ray_path(self, rays: [Ray]) -> str:
-        """ Add the ray path as a single connected line and return an identifier. 
-        
-            Parameters
-            ----------
-            rays : list of Ray
-                List of ray objects.
-            length : float
-                The length of the line to render. Default to 1000.
+        """Add the ray path as a single connected line and return an identifier.
 
-            See also
-            --------
-            add_path : Draws the line in more efficient way than `add_ray_path` but
-                limits the line to be a single colour.
+        Parameters
+        ----------
+        rays : list of Ray
+            List of ray objects.
+        length : float
+            The length of the line to render. Default to 1000.
 
-            Returns
-            -------
-            identifier : str
-                The string identifier used to add the line to the scene.
+        See also
+        --------
+        add_path : Draws the line in more efficient way than `add_ray_path` but
+            limits the line to be a single colour.
+
+        Returns
+        -------
+        identifier : str
+            The string identifier used to add the line to the scene.
         """
         vis = self.vis
         if len(rays) < 2:
@@ -254,21 +274,21 @@ class MeshcatRenderer(object):
         short_length: float = 1.0,
         bauble_radius: float = 0.01,
     ):
-        """ Similar to `add_ray_path` but with improved visualisation options.
-    
-            Parameters
-            ----------
-            history: tuple
-                Tuple of rays and events as returned from `photon_tracer.follow`
-            baubles: bool (optional)
-                Default is True. Draws baubles at exit location.
-            world_segment: str (optional)
-                Opt-out (`'exclude'`) or draw short (`'short`) path segments to the
-                world node.
-            short_length: float
-                The length of the final path segment when `world_segment='short'`.
-            bauble_radius: float
-                The bauble radius when `baubles=True`.
+        """Similar to `add_ray_path` but with improved visualisation options.
+
+        Parameters
+        ----------
+        history: tuple
+            Tuple of rays and events as returned from `photon_tracer.follow`
+        baubles: bool (optional)
+            Default is True. Draws baubles at exit location.
+        world_segment: str (optional)
+            Opt-out (`'exclude'`) or draw short (`'short`) path segments to the
+            world node.
+        short_length: float
+            The length of the final path segment when `world_segment='short'`.
+        bauble_radius: float
+            The bauble radius when `baubles=True`.
         """
         vis = self.vis
         if not world_segment in {"exclude", "short"}:
@@ -319,33 +339,39 @@ class MeshcatRenderer(object):
                     vis[f"exit/{baubid}"].set_transform(tf.translation_matrix(start))
 
                     ids.append(baubid)
+
+        self.ray_histories.append(ids)
+        if len(self.ray_histories) == self.max_histories:
+            ids_to_remove = self.ray_histories.popleft()
+            for id_to_remove in ids_to_remove:
+                self.remove_object(id_to_remove)
+
         return ids
 
     def remove_object(self, identifier):
-        """ Remove object by its identifier.
-        """
+        """Remove object by its identifier."""
         vis = self.vis
         vis[identifier].delete()
 
-    def _will_add_expendable_to_scene(self, item):
-        """ Private method used to notify buffer that a line or ray object will be
-            added to the scene.
-        
-            Notes
-            -----
-            This is used to manage the buffer size and will remove the oldest object
-            to keep the scene size constant.
-        """
-        if len(self.ray_histories) == self.max_histories:
-            self.remove_object(self.ray_histories.popleft())
+    # def _will_add_expendable_to_scene(self, item):
+    #     """Private method used to notify buffer that a line or ray object will be
+    #     added to the scene.
 
-    def _did_add_expendable_to_scene(self, identifier):
-        """ Private method use to notify the buffer that an expendable object has been
-            added to the scene. 
-        
-            Notes
-            -----
-            The identifier is used to remove the object when it is becomes the oldest
-            item in the buffer.
-        """
-        self.ray_histories.append(identifier)
+    #     Notes
+    #     -----
+    #     This is used to manage the buffer size and will remove the oldest object
+    #     to keep the scene size constant.
+    #     """
+    #     if len(self.ray_histories) == self.max_histories:
+    #         self.remove_object(self.ray_histories.popleft())
+
+    # def _did_add_expendable_to_scene(self, identifier):
+    #     """Private method use to notify the buffer that an expendable object has been
+    #     added to the scene.
+
+    #     Notes
+    #     -----
+    #     The identifier is used to remove the object when it is becomes the oldest
+    #     item in the buffer.
+    #     """
+    #     self.ray_histories.append(identifier)

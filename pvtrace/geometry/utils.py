@@ -165,7 +165,7 @@ def ray_z_cylinder(length, radius, ray_origin, ray_direction):
             x(t) \\
             y(t) \\
             z(t) \\ 
-            \end{bmatrix} = 
+            \end{bmatrix} =
             \\begin{bmatrix}
             x_E + t x_D \\
             y_E + t y_D \\
@@ -191,8 +191,8 @@ def ray_z_cylinder(length, radius, ray_origin, ray_direction):
 
         .. math::
         
-            t^2\left(x_D^2 + y_D^2\\right) + 
-            t \left(2 x_E x_D + 2 y_E y _D \\right) + 
+            t^2\left(x_D^2 + y_D^2\\right) +
+            t \left(2 x_E x_D + 2 y_E y _D \\right) +
             \left( x_E^2 + y_E^2 - R^2 \\right) = 0
 
         which is a standard quadratic equation,
@@ -201,9 +201,9 @@ def ray_z_cylinder(length, radius, ray_origin, ray_direction):
             
             at^2 + bt + c = 0
 
-        Solution of this equation give two values :math:`\left( t_1, t_2 \\right)` which 
+        Solution of this equation give two values :math:`\left( t_1, t_2 \\right)` which
         give the ray's distance to intersection points. To be ahead on the ray's path 
-        :math:`\left( t_1, t_2 \\right) >= 0` and to be real intersection points the 
+        :math:`\left( t_1, t_2 \\right) >= 0` and to be real intersection points the
         values must be finite and have imaginary component of zero. 
 
         The intersection with the cylinder caps is found by intersecting the ray with 
@@ -230,13 +230,13 @@ def ray_z_cylinder(length, radius, ray_origin, ray_direction):
                 0 \\
                 0 \\
                 -0.5 L \\ 
-                \end{bmatrix} - 
+                \end{bmatrix} -
             \\begin{bmatrix}
                 x_E \\
                 y_E \\
                 z_E \\ 
             \end{bmatrix}
-            \\right) \cdot 
+            \\right) \cdot
             \\begin{bmatrix}
                 0 \\
                 0 \\
@@ -265,13 +265,13 @@ def ray_z_cylinder(length, radius, ray_origin, ray_direction):
                 0 \\
                 0 \\
                 0.5 L \\ 
-                \end{bmatrix} - 
+                \end{bmatrix} -
             \\begin{bmatrix}
                 x_E \\
                 y_E \\
                 z_E \\ 
             \end{bmatrix}
-            \\right) \cdot 
+            \\right) \cdot
             \\begin{bmatrix}
                 0 \\
                 0 \\
@@ -376,7 +376,7 @@ def allinrange(x, x_range):
         x_range : tuple of float
             A tuple defining a range like (xmin, xmax)
     """
-    if isinstance(x, (int, float, np.float, np.int)):
+    if isinstance(x, (int, float)):
         x = np.array([x])
     return np.where(np.logical_or(x < x_range[0], x > x_range[1]))[0].size == 0
 
