@@ -22,7 +22,7 @@ setup(
         __version__
     ),
     entry_points={"console_scripts": ["pvtrace-cli=pvtrace.cli.main:main"]},
-    python_requires=">=3.7.2,<3.10",
+    python_requires=">=3.7.2",
     packages=find_packages(),
     package_data={"": ["*.json", "schema.sql"]},
     include_package_data=True,
