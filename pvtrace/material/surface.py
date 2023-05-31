@@ -124,7 +124,7 @@ class FresnelSurfaceDelegate(SurfaceDelegate):
         n2 = adjacent.geometry.material.refractive_index
         # Be tolerance with definition of surface normal
         from pvtrace import Mesh
-        if isinstance(geometry, Mesh):
+        if type(geometry) == Mesh:  # isinstance includes Box as it subclasses Mesh
             normal = geometry.normal_from_intersection(ray)
         else:
             normal = geometry.normal(ray.position)
@@ -151,7 +151,7 @@ class FresnelSurfaceDelegate(SurfaceDelegate):
                 The node that would contain the ray if transmitted.
         """
         from pvtrace import Mesh
-        if isinstance(geometry, Mesh):
+        if type(geometry) == Mesh:  # isinstance includes Box as it subclasses Mesh
             normal = geometry.normal_from_intersection(ray)
         else:
             normal = geometry.normal(ray.position)
@@ -179,7 +179,7 @@ class FresnelSurfaceDelegate(SurfaceDelegate):
         n2 = adjacent.geometry.material.refractive_index
         # Be tolerance with definition of surface normal
         from pvtrace import Mesh
-        if isinstance(geometry, Mesh):
+        if type(geometry) == Mesh:  # isinstance includes Box as it subclasses Mesh
             normal = geometry.normal_from_intersection(ray)
         else:
             normal = geometry.normal(ray.position)
